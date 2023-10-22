@@ -1,0 +1,98 @@
+import random
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+from numpy import linalg as LA
+
+
+class Lazy:
+    def __init__(self,cons):
+        self.constant = cons
+        self.w = [0,0,0]
+        self.loss = [0]
+        self.cumloss = 0
+    
+    def turn(self,z,t):
+        eta = (self.constant / math.sqrt(t)) + (0.01 * (1 - self.constant))
+        loss = [x*y for x,y in zip(proj(self.w),z)]
+        self.cumloss += sum(loss)
+        self.loss.append(self.cumloss)
+        new = primal([x-y for x,y in zip(dual(self.w,eta),z)],eta)
+        #new = [x-(eta*y) for x,y in zip(self.w,z)]
+        self.w = new
+        return
+
+class Active:
+    def __init__(self,cons):
+        self.constant = cons
+        self.w = [0,0,0]
+        self.loss = [0]
+        self.cumloss = 0
+    
+    def turn(self,z,t):
+        eta = (self.constant / math.sqrt(t)) + (0.01 * (1 - self.constant))
+        loss = [x*y for x,y in zip(self.w,z)]
+        self.cumloss += sum(loss)
+        self.loss.append(self.cumloss)
+        #new = [x-(eta*y) for x,y in zip(self.w,z)]
+        new = primal([x-y for x,y in zip(dual(self.w,eta),z)],eta)
+        self.w = proj(new)
+        return
+
+    
+def dual(w,eta):
+    dual = [elt/eta for elt in w]
+    return dual
+
+def primal(theta,eta):
+    primal = [elt * eta for elt in theta]
+    return primal
+
+def proj(w):
+    v = np.array(w)
+    x = LA.norm(v)
+    m = max(x,1)
+    proj = [elt/m for elt in w]
+    return proj
+
+def main():
+    mu = 1
+    sigma = 1
+    T = 10000
+    number = 4
+    time = [0]
+    algos = []
+    coeff = [0,0,0]
+    for i in range(number):
+        if i == 0:
+            algos.append(Lazy(0))
+        if i == 1:
+            algos.append(Lazy(1))
+        if i == 2:
+            algos.append(Active(0))
+        if i == 3:
+            algos.append(Active(1))
+    for t in range(T):
+        time.append(t+1)
+        for i in range(3):
+            coeff[i] = random.gauss(mu,sigma)
+        
+        for i in range(len(algos)):
+            algos[i].turn(coeff,t+1)
+            
+    labels = ['FTRL constant', 'FTRL time varying', 'OMD constant', 'OMD time varying']
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+    for i in range(len(algos)):
+        plt.plot(time, algos[i].loss, color = colors[i], label = labels[i], linewidth = 1.0)
+    
+    plt.ylabel('Cumulative Loss')
+    plt.xlabel('Time')
+    plt.title('Cumulative Loss vs Time')
+    
+    plt.grid()
+    plt.legend()
+    fig = plt.gcf()
+    fig.set_size_inches(20, 15)
+    plt.show()
+    
+main()
